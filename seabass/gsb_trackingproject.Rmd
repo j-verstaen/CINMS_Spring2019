@@ -40,8 +40,8 @@ Future fun stuff: Add temperature data to some of the graphs and maybe do some s
 ##1. Data
 ```{r}
 
-detec1 <- read_excel("/seabass/data/detections_6_4_2019.xls")
-detec2 <- read_excel("/seabass/data/detections_6_4_2019.xls")
+detec1 <- read_excel("seabass/data/detections_6_4_2019.xls")
+detec2 <- read_excel("seabass/data/detections_4_3_2019.xls")
 ###load in other data here as you get it and then add to the rbind code
 
 detec <- rbind(detec1, detec2) %>%
