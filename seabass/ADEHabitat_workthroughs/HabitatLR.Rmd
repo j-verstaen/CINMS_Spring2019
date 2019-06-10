@@ -1,0 +1,31 @@
+---
+title: "ADEHabitatLR"
+author: "Juliette Verstaen"
+date: "4/17/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+data(puechabonsp)
+locs <- puechabonsp$relocs
+locs <- as.data.frame(locs)
+head(locs)
+
+da <- as.character(locs$Date)
+head(da)
+
+da <- as.POSIXct(strptime(as.character(locs$Date),"%y%m%d", tz="Europe/Paris"))
+
+puech <- as.ltraj(xy = locs[,c("X","Y")], date = da, id = locs$Name)
+puech
+#number of bursts responds to the number or animals
+
+head(puech[[1]])
+
+```
+

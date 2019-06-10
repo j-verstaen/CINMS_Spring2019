@@ -1,0 +1,151 @@
+---
+title: "Squid Satellite Proof of Concept"
+author: "Juliette Verstaen"
+date: "5/7/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+
+library(tidyverse)
+library(ncdf4)
+library(ncdf.tools)
+library(rerddap)
+library(akima)
+library(dplyr)
+library(ggplot2)
+library(mapdata)
+library(ncdf4)
+library(plot3D)
+
+```
+
+
+###kml files
+Found some data that I thought could be what we wanted in kml format. Did not work
+
+```{r}
+
+library(sf)
+library(gdalUtils)
+
+test <- st_read("data/collections.kml")
+
+testmap <- ggplot(data = test) +
+  geom_sf()
+
+ogrInfo("collections.kml",layer="collections")
+polysFromKML=readOGR("collections.kml",layer="collections") 
+class(polysFromKML)
+plot(polysFromKML) 
+
+```
+
+file_naming_convention = VNP02DNB.AYYYYDDD.HHMM.CCC.YYYYDDDHHMMSS.nc AYYYYDDD = Acquisition Year and Day of Year HHMM = Acquisition Hour and Minute CCC = Collection number YYYYDDDHHMMSS = Production Date and Time nc = NetCDF4
+
+###Getting data from netCDF file
+```{r}
+
+### load the ncdf4 package
+library(ncdf4)
+
+### set the path and filename
+ncpath <- "data/ncfiles/"
+ncname <- "test"  
+ncfname <- paste(ncpath, ncname, ".nc4", sep="")
+dname <- "BinScheme1_ScienceData_Radiance"
+
+### open the netCDF file
+ncin <- nc_open(ncfname)
+print(ncin)
+
+### name of all the varibables in this file
+names(ncin$var)
+
+### get lattitude and longitude
+lat <- ncvar_get(ncin,"BinScheme1_GeolocationData_Latitude")
+nlat <- dim(lat)
+head(lat)
+
+lon <- ncvar_get(ncin,"BinScheme1_GeolocationData_Longitude")
+nlon <- dim(lon)
+head(lon)
+
+### get the radiance 
+rad <- ncvar_get(ncin, "BinScheme1_ScienceData_Radiance")
+rad
+
+### get the units for the radiance (this seems like its very important/helpful when using time units ie: units are different for each piece of information)
+rad_units <- ncatt_get(ncin, "BinScheme1_ScienceData_Radiance", "units")
+nt <- dim(rad)
+nt
+
+rad_units
+### hasatt means that rad-units has two components: hasatt = logical variable, and value = the actual units
+
+### get radiance
+rad_array <- ncvar_get(ncin,dname)
+dlname <- ncatt_get(ncin,dname,"long_name")
+dunits <- ncatt_get(ncin,dname,"units")
+fillvalue <- ncatt_get(ncin,dname,"_FillValue")
+dim(rad_array)
+
+### get global attributes
+title <- ncatt_get(ncin,0,"title")
+institution <- ncatt_get(ncin,0,"institution")
+datasource <- ncatt_get(ncin,0,"source")
+references <- ncatt_get(ncin,0,"references")
+history <- ncatt_get(ncin,0,"history")
+Conventions <- ncatt_get(ncin,0,"Conventions")
+time_start <- ncatt_get(ncin,0,"time_coverage_start")
+time_end <- ncatt_get(ncin,0,"time_coverage_end")
+
+### this is not necessary in the code but useful information for knowing the names of the varibles in your file
+# name of all the varibables in this file
+names(ncin$var)
+
+### close the netCDF file
+nc_close(ncin)
+
+### check to make sure the objects you extracted above are in your workshape
+ls()
+
+```
+
+
+###Reshaping from raster to rectangle
+Attempts to visulize the radiance data on a map
+```{r}
+
+### load some packages
+library(chron)
+library(lattice)
+library(RColorBrewer)
+
+### replace netCDF fill values with NA's
+rad_array[rad_array==fillvalue$value] <- NA
+
+length(na.omit(as.vector(rad_array[,,1])))
+
+m <- 1
+rad_slice <- rad_array[,,m]
+
+image(lon,lat,rad_slice)
+
+col=rev(brewer.pal(10,"RdBu"))
+
+```
+
+
+
+
+
+
+
+
+

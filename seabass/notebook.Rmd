@@ -1,0 +1,859 @@
+---
+title: "notebook: using og data given"
+author: "Juliette Verstaen"
+date: "4/9/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load packages
+```{r}
+library(tidyverse)
+library(sf)
+library(sp)
+library(ggpubr)
+library(readxl)
+library(lubridate)
+library(adehabitatLT)
+library(raster)
+library(rworldmap)
+
+```
+
+Data Loading
+```{r}
+
+detec <- read_csv("data/GSBdetections_SBI_4_3_19offload.csv")
+
+#rename columns
+names(detec) <- c("date_time", "receiver", "transmitter", "station", "lat", "long", "notes")
+
+```
+
+4/10/19: TO DO
+- left off in the data wrangling section messing with detec to make station numbers 01 instead of 1 so that the abaus thing works. 
+- need to graph the rest of the fish, should be straightforward sicne I alreayd did it for one
+- don't need to seperate out each station, go back through and make sure if not not then delete it
+
+Data Wrangling
+
+```{r}
+
+#pick and simplify the data that we need
+detec <- detec %>%
+  select("date_time", "transmitter", "station", "lat", "long") %>%
+  separate(transmitter, c("first", "second", "transmitter")) %>%
+  select("date_time", "transmitter", "station", "long", "lat") 
+
+#detec <- gsub("SB-1","SB-01", detect )
+detec$station[detec$station == "SB-1"] <- "SB-01"
+detec$station[detec$station == "SB-2"] <- "SB-02"
+detec$station[detec$station == "SB-3"] <- "SB-03"
+detec$station[detec$station == "SB-4"] <- "SB-04"
+detec$station[detec$station == "SB-5"] <- "SB-05"
+detec$station[detec$station == "SB-6"] <- "SB-06"
+detec$station[detec$station == "SB-7"] <- "SB-07"
+detec$station[detec$station == "SB-8"] <- "SB-08"
+detec$station[detec$station == "SB-9"] <- "SB-09"
+
+
+#convert the lat/longs to actual spatial points/classes
+detec_sf <- st_as_sf(detec, coords= c("long","lat"), crs=4326)
+detec_sp <- as(detec_sf, "Spatial")
+
+```
+
+Changing the time to standard convention
+##this was part of my OG raw data wrangling for data time class
+```{r}
+
+library(lubridate)
+
+#making the time correct
+detec <- detec %>%
+  separate(date_time, c("date", "time"), sep= " ")%>%
+  separate(time, c("minute", "second", sep= ":")) 
+
+##Date stuff is weird so trying to fix that
+# minutes need to ahve 2 digits
+minutes_2digits <-  sprintf("%02s", detec$minute)
+#order of the date is wrong
+reorder_date <- as.Date(parse_date_time(detec$date,"mdy"))
+
+#need to bind them back together with the main df since they are vectors
+detec_new_1 <- cbind(detec, reorder_date)
+detec_new <- cbind(detec_new_1, minutes_2digits)
+
+detec_spatial <- detec_new %>%
+  unite(time, minutes_2digits, second, sep = ":") %>%
+  unite(date_time, reorder_date, time, sep = " ")%>%
+  select("date_time", "transmitter", "station", "lat", "long")
+
+detec_time <- detec_new %>%
+  unite(time, minutes_2digits, second, sep = ":") %>%
+  unite(date_time, reorder_date, time, sep = "T")%>%
+  select("date_time", "transmitter", "station", "lat", "long")
+
+#change the class so that R recognizes it as date and time aka POSIXct
+detec_time$date_time <- as.POSIXct(detec_time$date_time, format="%Y-%m-%dT%H:%M")
+#head(detec_posix)
+
+#check that the date time is in the proper class
+class(detec_time$date_time)
+
+#convert the lat/longs to actual spatial points/classes
+detec_sf <- st_as_sf(detec_spatial, coords= c("long","lat"), crs=4326)
+detec_sp <- as(detec_sf, "Spatial")
+
+
+```
+
+
+Abacus Graphs
+seperate by fish and station
+```{r}
+
+# 1 fish
+all_29792 <- detec_time %>%
+  filter(transmitter == "29792")
+
+#2 fish
+all_9712 <- detec_time %>%
+  filter(transmitter == "9712")
+
+#3 fish
+all_9714 <- detec_time %>%
+  filter(transmitter == "9714")
+
+#4 fish
+all_9716 <- detec_time %>%
+  filter(transmitter == "9716")
+
+#5 fish
+all_9718 <- detec_time %>%
+  filter(transmitter == "9718")
+
+```
+
+##Ploting Abaus graphs 
+1 fish
+```{r}
+
+all_29792
+class(all_29792$date_time)
+
+#1 fish
+f1 <-ggplot(all_29792, aes(x=date_time, y= station )) +
+       geom_point() +
+       theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+       scale_x_datetime() +
+  ggtitle("Reciever #29792")
+
+f1
+
+
+```
+
+2 fish
+```{r}
+
+#2 fish
+f2 <-ggplot(all_9712, aes(x=date_time, y= station )) +
+       geom_point() +
+       theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+       scale_x_datetime() +
+  ggtitle("Reciever #9712")
+
+f2
+
+
+```
+
+3 fish
+```{r}
+
+#3 fish
+f3 <-ggplot(all_9714, aes(x=date_time, y= station )) +
+       geom_point() +
+       theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+       scale_x_datetime() +
+  ggtitle("Reciever #9714")
+
+f3
+
+```
+
+4 fish
+```{r}
+
+#4 fish
+f4 <-ggplot(all_9716, aes(x=date_time, y= station )) +
+       geom_point() +
+       theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+       scale_x_datetime() +
+  ggtitle("Reciever #9716")
+
+f4
+
+```
+
+5 fish
+```{r}
+
+#5 fish
+f5 <-ggplot(all_9718, aes(x=date_time, y= station )) +
+       geom_point() +
+       theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+       scale_x_datetime() +
+  ggtitle("Reciever #9718")
+
+f5
+
+```
+
+All Abacus Graphs on One
+
+```{r}
+
+all_abacus <- ggarrange(f1, f2, f3,f4, f5 , 
+          ncol = 2, nrow = 3)
+
+#f3 only has one obsrvation
+
+all_abacus
+ggsave("all_abacus.jpg", width=5, height=7, dpi=300)
+
+```
+
+Mapping Detections/Hr for 29792
+Frequency detections per hour
+http://www.r-gators.com/2018/01/31/wildlife-tracking-data-in-r/
+##THIS IS CREATING TRAJECTORY CLASS WITH DATA
+```{r}
+
+class(all_29792)
+
+#calling this test for now to make it easier. using all_29792; make it back to that after figure it out
+test <- all_29792 
+
+class(test)
+
+data(test, package = "sp")
+test_sf <- st_as_sf(test, coords= c("long","lat"), crs=4326)
+test_sp <- as(test_sf, "Spatial")
+
+class(test_sp$date_time)
+
+#creating ltraj object
+
+raw_test <- as.ltraj(coordinates(test_sp),date=test_sp$date_time,id=test_sp$transmitter, typeII=TRUE)
+
+is.regular(raw_test)
+
+```
+
+###was doing this for mapping detection
+Data wrangling for: 29792
+```{r}
+
+all_29792 <- detec %>%
+  filter(transmitter == "29792")
+
+freq_29792 <- all_29792 %>%
+   separate(date_time, c("date", "time"), sep= " ")%>%
+   separate(time, c("hour", "minute", "second"), sep= ":") %>%
+ # mutate(occur = 1) %>%
+  group_by(date, hour, station)%>%
+ # summarize(freq=sum(occur)) %>%
+   mutate(lat = station) %>%
+  mutate(long = station) %>%
+  select(date, station,  long, lat)
+
+#adding coordinates
+# Station 1
+freq_29792$lat <- replace(freq_29792$lat, freq_29792$lat == "SB-01", "33.48818")
+freq_29792$long <- replace(freq_29792$long, freq_29792$long == "SB-01", "- 119.0249")
+
+# Station 2
+freq_29792$lat <- replace(freq_29792$lat, freq_29792$lat == "SB-02", "33.49063")
+freq_29792$long <- replace(freq_29792$long, freq_29792$long == "SB-02", "- 119.0317")
+
+# Station 3
+freq_29792$lat <- replace(freq_29792$lat, freq_29792$lat == "SB-03", "33.48695")
+freq_29792$long <- replace(freq_29792$long, freq_29792$long == "SB-03", "- 119.0405")
+
+# Station 5
+freq_29792$lat <- replace(freq_29792$lat, freq_29792$lat == "SB-05", "33.47595")
+freq_29792$long <- replace(freq_29792$long, freq_29792$long == "SB-05", "- 119.0476")
+
+# Station 6
+freq_29792$lat <- replace(freq_29792$lat, freq_29792$lat == "SB-06", "33.46800")
+freq_29792$long <- replace(freq_29792$long, freq_29792$long == "SB-06", "- 119.0457")
+
+# Station 7
+freq_29792$lat <- replace(freq_29792$lat, freq_29792$lat == "SB-07", "33.46367")
+freq_29792$long <- replace(freq_29792$long, freq_29792$long == "SB-07", "- 119.0418")
+
+# Station 8
+freq_29792$lat <- replace(freq_29792$lat, freq_29792$lat == "SB-08", "33.46065")
+freq_29792$long <- replace(freq_29792$long, freq_29792$long == "SB-08", "- 119.0348")
+
+# Station 9
+freq_29792$lat <- replace(freq_29792$lat, freq_29792$lat == "SB-09", "33.47087")
+freq_29792$long <- replace(freq_29792$long, freq_29792$long == "SB-09", "- 119.0260")
+
+# Station 10
+freq_29792$lat <- replace(freq_29792$lat, freq_29792$lat == "SB-10", "33.48382")
+freq_29792$long <- replace(freq_29792$long, freq_29792$long == "SB-10", "- 119.0228")
+
+
+
+
+```
+
+
+##############
+
+Plotting Dectections
+```{r}
+
+#download coastline shapefile
+library(rnaturalearth)
+library(rgeos)
+#download coast shapefile (?)
+coast <- rnaturalearth::ne_countries(scale = "large",
+                                     country = "United States of America",
+                                     returnclass = "sf")
+
+#plot all; can't see a lot of them beause on top of each other
+sbi_detec <- ggplot(data = detec_sf) +
+  geom_sf(aes(color = detec_sf$transmitter))+
+  geom_sf(data = coast, color = "darkgreen", fill = "darkgreen") +
+  ggtitle("Giant Seabass Dections August- Septemeber 2018")+
+  ggtitle("Giant Seabass Dections August- Septemeber 2018")+
+  coord_sf(xlim = c(-119.01, -119.06), ylim = c(33.46, 33.495))
+  
+sbi_detec
+
+#plot 29792
+
+detec_29792<- detec_sf %>%
+  filter(transmitter == "29792")%>%
+  select("date_time", "transmitter", "geometry")
+
+detec_29792_plot <- ggplot(data = detec_29792) +
+  geom_sf(aes(color = detec_29792$date_time))+
+  geom_sf(data = coast, color = "darkgreen", fill = "darkgreen") +
+  ggtitle("Giant Seabass Dections August- Septemeber 2018")+
+  ggtitle("Giant Seabass Dections August- Septemeber 2018")+
+  coord_sf(xlim = c(-119.01, -119.06), ylim = c(33.46, 33.495))+
+  #scale_color_continuous()+
+  theme(axis.text.x=element_text(angle=90, hjust=1)) 
+  
+detec_29792_plot
+
+```
+
+Past Work:
+
+
+Changing the date/time to be recognizable by R
+- turns out that sf package can't read this type of class data so it won't work
+```{r}
+
+#library(lubridate)
+
+#pick and simplify the data that we need
+#detec <- detec %>%
+#  select("date_time", "transmitter", "station", "lat", "long") %>%
+#  separate(transmitter, c("first", "second", "transmitter")) %>%
+#  select("date_time", "transmitter", "station", "long", "lat") %>%
+#  separate(date_time, c("date", "time"), sep= " ")%>%
+#  separate(time, c("minute", "second", sep= ":")) 
+
+##Date stuff is weird so trying to fix that
+# minutes need to ahve 2 digits
+#minutes_2digits <-  sprintf("%02s", detec$minute)
+# order of the date is wrong
+#reorder_date <- as.Date(parse_date_time(detec$date,"mdy"))
+
+#need to bind them back together with the main df since they are vectors
+#detec_new_1 <- cbind(detecTEST, reorder_date)
+#detec_new <- cbind(detec_new_1, minutes_2digits)
+
+#detec_new <- detec_new %>%
+#  unite(time, minutes_2digits, second, sep = ":") %>%
+#  unite(date_time, reorder_date, time, sep = "T")%>%
+#  select("date_time", "transmitter", "station", "lat", "long")
+
+#change the class so that R recognizes it as date and time aka POSIXct
+#detec_posix <- as.POSIXct(detec_new$date_time, format="%Y-%m-%dT%H:%M")
+#head(detec_posix)
+
+#check that the date time is in the proper class
+#class(detec_new$date_time)
+
+
+```
+
+
+
+####Mapping Movement Trajectory by the hour
+###4/16/19
+
+##trying to use HabitatLR package: I don't think this is possible because of the irregular trajectory. this means that the "descriptive parameters of these trajectories may not becompared when computed on different time lags"
+```{r}
+
+##this detec is from this file : detec <- read_csv("data/Detections_Juliette.csv")
+# run the first chunk from the final Rmarkdown file
+
+f1_29792 <- detec %>%
+  filter(transmitter == "29792")
+
+#calling this test for now to make it easier. using all_29792; make it back to that after figure it out
+test <- f1_29792 %>%
+#  mutate(x = "NA") %>%
+#  mutate(y = "NA")
+  
+#  mutate(freq= 1)
+
+#####Figure out how to group or bin or cut by hour and then sum 
+
+#this?
+#test$total_freq <- cut(test$date_time, breaks="hour")
+#aggregate(test$freq,by=list(test$hour),FUN=sum)
+
+#or this?
+#test_hourdetec <- do.call('data.frame', aggregate(freq~
+              #   cbind(Hour=format(date_time,'%HH')), test, sum))
+#test_hourdetec$Hour
+#Hour 
+# 16 
+#Levels: 16
+
+
+#res$Hour <- as.numeric(as.character(res$Hour))
+#with(res, plot(Hour, Speed))
+
+#following more exactly along with the example
+#test <- test[!is.na(test$x),]
+#test <- test[!is.na(test$y),]
+
+#coordinates(test) <- c("long", "lat")
+
+#proj4string(test) <- CRS("+init=epsg:32617")
+#class(test)
+
+#this was the way i normall do it
+#converting to spatial coordinates
+data(test, package = "sp")
+test_sf <- st_as_sf(test, coords= c("long","lat"), crs=4326)
+test_sp <- as(test_sf, "Spatial")
+
+class(test_sp$date_time)
+#check to make sure its class: "POSIXct" "POSIXt" 
+
+#creating ltraj object
+raw_test <- as.ltraj(coordinates(test_sp),date=test_sp$date_time,id=test_sp$transmitter, typeII=TRUE)
+
+#test if the trajectory is regular (ie. constant time lag between successive relocations)
+#should be FALSE because of the type of tracking equipement used
+is.regular(raw_test)
+
+raw_test
+#only 1 burst because we have filtered out only one tracker (each burst has a bunch of info within)
+
+head(raw_test[[1]])
+
+plot(raw_test)
+
+
+```
+###################################################
+#### 4/17/19
+###################################################
+# 
+```{r}
+
+##this detec is from this file : detec <- read_csv("data/Detections_Juliette.csv")
+# run the first chunk from the final Rmarkdown file
+f1_29792 <- detec %>%
+  filter(transmitter == "29792")
+
+#calling this test for now to make it easier. using all_29792; make it back to that after figure it out
+#the grouping i did should have worked but double check R logit behind it
+
+##data wrangle
+test <- f1_29792 %>%
+  mutate(freq= 1) %>%
+  separate(date_time, c("date", "time"), sep= " ") %>%
+  separate(time, c("hour", "minute", "second"), sep = ":") %>%
+  group_by(date, hour, transmitter, station, lat, long) %>%
+  summarise(freq=sum(freq)) %>%
+  mutate(minute= "00") %>%
+  mutate(second= "00") %>%
+  unite(time_1, minute, second, sep= ":")%>%
+  unite(time, hour, time_1, sep = ":") %>%
+  unite(date_time, date, time, sep = " ")
+
+#changing classes for time and coordinates
+test$date_time <- as.POSIXct(test$date_time, format="%Y-%m-%d %H:%M")
+data(test, package = "sp")
+test_sf <- st_as_sf(test, coords= c("long","lat"), crs=4326)
+test_sp <- as(test_sf, "Spatial")
+
+#map dectections by frequency= color
+
+testmap <- ggplot(data = test_sf) +
+  geom_sf(aes(color = test_sf$freq))+
+  #geom_sf(data = coast, color = "darkgreen", fill = "darkgreen") +
+  ggtitle("Giant Seabass Dections August- Septemeber 2018")+
+  coord_sf(xlim = c(-119.01, -119.06), ylim = c(33.46, 33.495))
+
+testmap
+
+
+```
+
+#### great lakes acoustic package
+
+```{r}
+##install
+install.packages("remotes")
+library(remotes) 
+install_url("https://gitlab.oceantrack.org/GreatLakes/glatos/repository/master/archive.zip",
+              build_opts = c("--no-resave-data", "--no-manual"))  
+library(glatos)
+
+test <- detec %>%
+  filter(transmitter == "29792")
+
+names(test) <- c("detection_timestamp_utc", "transmitter", "station", "long", "lat")
+
+#class(test$date_time)
+         
+data(test, package = "sp")
+test_sf <- st_as_sf(test, coords= c("long","lat"), crs=4326)
+test_sp <- as(test_sf, "Spatial")
+
+st_geometry(test_sf) <- "location_col"
+  
+
+test_ab <- abacus_plot(test_sf[
+test_sf$transmitter == 29792,], location_col='glatos_array', detection_timestamp_utc ='glatos_array', main='Fish 1: 29792')
+
+
+```
+
+##attempts at mapping detections
+#the grouping i did should have worked but double check R logit behind it
+
+Fish 1: 29792
+```{r}
+
+##data wrangle
+
+f1_hourly <- detec %>%
+  filter(transmitter == "29792")%>%
+  mutate(freq= 1) %>%
+  separate(date_time, c("date", "time"), sep= " ") %>%
+  separate(time, c("hour", "minute", "second"), sep = ":") %>%
+  group_by(date, hour, transmitter, station, lat, long) %>%
+  summarise(freq=sum(freq)) %>%
+  mutate(minute= "00") %>%
+  mutate(second= "00") %>%
+  unite(time_1, minute, second, sep= ":")%>%
+  unite(time, hour, time_1, sep = ":") %>%
+  unite(date_time, date, time, sep = " ")
+
+#changing classes for time and coordinates
+f1_hourly$date_time <- as.POSIXct(f1_hourly$date_time, format="%Y-%m-%d %H:%M")
+data(f1_hourly, package = "sp")
+f1_hourly_sf <- st_as_sf(f1_hourly, coords= c("long","lat"), crs=4326)
+f1_hourly_sp <- as(f1_hourly_sf, "Spatial")
+
+#map dectections by frequency= color
+
+f1_hourly_map <- ggplot(data = f1_hourly_sf) +
+  geom_sf(aes(color = f1_hourly_sf$freq))+
+  geom_sf(data = ca, color = "darkgreen", fill = "darkgreen") +
+  ggtitle("29792 Frequency August- Septemeber 2018")+
+  coord_sf(xlim = c(-119.01, -119.06), ylim = c(33.46, 33.495))
+
+f1_hourly_map
+
+
+```
+
+
+Fish 2: 9712
+```{r}
+
+##data wrangle
+
+f2_hourly <- detec %>%
+  filter(transmitter == "9712")%>%
+  mutate(freq= 1) %>%
+  separate(date_time, c("date", "time"), sep= " ") %>%
+  separate(time, c("hour", "minute", "second"), sep = ":") %>%
+  group_by(date, hour, transmitter, station, lat, long) %>%
+  summarise(freq=sum(freq)) %>%
+  mutate(minute= "00") %>%
+  mutate(second= "00") %>%
+  unite(time_1, minute, second, sep= ":")%>%
+  unite(time, hour, time_1, sep = ":") %>%
+  unite(date_time, date, time, sep = " ")
+
+#changing classes for time and coordinates
+f2_hourly$date_time <- as.POSIXct(f2_hourly$date_time, format="%Y-%m-%d %H:%M")
+data(f2_hourly, package = "sp")
+f2_hourly_sf <- st_as_sf(f2_hourly, coords= c("long","lat"), crs=4326)
+f2_hourly_sp <- as(f2_hourly_sf, "Spatial")
+
+#map dectections by frequency= color
+
+f2_hourly_map <- ggplot(data = f2_hourly_sf) +
+  geom_sf(aes(color = f2_hourly_sf$freq))+
+  geom_sf(data = ca, color = "darkgreen", fill = "darkgreen") +
+  ggtitle("9712 Frequency August- Septemeber 2018")+
+  coord_sf(xlim = c(-119.01, -119.06), ylim = c(33.46, 33.495))
+
+f2_hourly_map
+
+
+```
+
+
+Fish 3: 9714
+```{r}
+
+##data wrangle
+
+f3_hourly <- detec %>%
+  filter(transmitter == "9714")%>%
+  mutate(freq= 1) %>%
+  separate(date_time, c("date", "time"), sep= " ") %>%
+  separate(time, c("hour", "minute", "second"), sep = ":") %>%
+  group_by(date, hour, transmitter, station, lat, long) %>%
+  summarise(freq=sum(freq)) %>%
+  mutate(minute= "00") %>%
+  mutate(second= "00") %>%
+  unite(time_1, minute, second, sep= ":")%>%
+  unite(time, hour, time_1, sep = ":") %>%
+  unite(date_time, date, time, sep = " ")
+
+#changing classes for time and coordinates
+f3_hourly$date_time <- as.POSIXct(f3_hourly$date_time, format="%Y-%m-%d %H:%M")
+data(f3_hourly, package = "sp")
+f3_hourly_sf <- st_as_sf(f3_hourly, coords= c("long","lat"), crs=4326)
+f3_hourly_sp <- as(f3_hourly_sf, "Spatial")
+
+#map dectections by frequency= color
+
+f3_hourly_map <- ggplot(data = f3_hourly_sf) +
+  geom_sf(aes(color = f3_hourly_sf$freq))+
+  geom_sf(data = ca, color = "darkgreen", fill = "darkgreen") +
+  ggtitle("9714 Frequency August- Septemeber 2018")+
+  coord_sf(xlim = c(-119.01, -119.06), ylim = c(33.46, 33.495))
+
+f3_hourly_map
+
+
+```
+
+
+Fish 4: 9716
+```{r}
+
+##data wrangle
+
+f4_hourly <- detec %>%
+  filter(transmitter == "9716")%>%
+  mutate(freq= 1) %>%
+  separate(date_time, c("date", "time"), sep= " ") %>%
+  separate(time, c("hour", "minute", "second"), sep = ":") %>%
+  group_by(date, hour, transmitter, station, lat, long) %>%
+  summarise(freq=sum(freq)) %>%
+  mutate(minute= "00") %>%
+  mutate(second= "00") %>%
+  unite(time_1, minute, second, sep= ":")%>%
+  unite(time, hour, time_1, sep = ":") %>%
+  unite(date_time, date, time, sep = " ")
+
+#changing classes for time and coordinates
+f4_hourly$date_time <- as.POSIXct(f4_hourly$date_time, format="%Y-%m-%d %H:%M")
+data(f4_hourly, package = "sp")
+f4_hourly_sf <- st_as_sf(f4_hourly, coords= c("long","lat"), crs=4326)
+f4_hourly_sp <- as(f4_hourly_sf, "Spatial")
+
+#map dectections by frequency= color
+
+f4_hourly_map <- ggplot(data = f4_hourly_sf) +
+  geom_sf(aes(color = f4_hourly_sf$freq))+
+  geom_sf(data = ca, color = "darkgreen", fill = "darkgreen") +
+  ggtitle("9716 Frequency August- Septemeber 2018")+
+  coord_sf(xlim = c(-119.01, -119.06), ylim = c(33.46, 33.495))
+
+f4_hourly_map
+
+
+```
+
+
+Fish 5: 9718
+```{r}
+
+##data wrangle
+
+f5_hourly <- detec %>%
+  filter(transmitter == "9718")%>%
+  mutate(freq= 1) %>%
+  separate(date_time, c("date", "time"), sep= " ") %>%
+  separate(time, c("hour", "minute", "second"), sep = ":") %>%
+  group_by(date, hour, transmitter, station, lat, long) %>%
+  summarise(freq=sum(freq)) %>%
+  mutate(minute= "00") %>%
+  mutate(second= "00") %>%
+  unite(time_1, minute, second, sep= ":")%>%
+  unite(time, hour, time_1, sep = ":") %>%
+  unite(date_time, date, time, sep = " ")
+
+#changing classes for time and coordinates
+f5_hourly$date_time <- as.POSIXct(f5_hourly$date_time, format="%Y-%m-%d %H:%M")
+data(f5_hourly, package = "sp")
+f5_hourly_sf <- st_as_sf(f5_hourly, coords= c("long","lat"), crs=4326)
+f5_hourly_sp <- as(f5_hourly_sf, "Spatial")
+
+#map dectections by frequency= color
+
+f5_hourly_map <- ggplot(data = f5_hourly_sf) +
+  geom_sf(aes(color = f5_hourly_sf$freq))+
+  geom_sf(data = ca, color = "darkgreen", fill = "darkgreen") +
+  ggtitle("9718 Frequency August- Septemeber 2018")+
+  scale_colour_viridis_c() +
+  coord_sf(xlim = c(-119.01, -119.06), ylim = c(33.46, 33.495))
+
+f5_hourly_map
+
+
+```
+
+
+All Fish
+```{r}
+
+##data wrangle
+
+all_hourly <- detec %>%
+  mutate(freq= 1) %>%
+  separate(date_time, c("date", "time"), sep= " ") %>%
+  separate(time, c("hour", "minute", "second"), sep = ":") %>%
+  group_by(transmitter, date, hour, transmitter, station, lat, long) %>%
+  summarise(freq=sum(freq)) %>%
+  mutate(minute= "00") %>%
+  mutate(second= "00") %>%
+  unite(time_1, minute, second, sep= ":")%>%
+  unite(time, hour, time_1, sep = ":") %>%
+  unite(date_time, date, time, sep = " ")
+
+#changing classes for time and coordinates
+all_hourly$date_time <- as.POSIXct(all_hourly$date_time, format="%Y-%m-%d %H:%M")
+data(all_hourly, package = "sp")
+all_hourly_sf <- st_as_sf(all_hourly, coords= c("long","lat"), crs=4326)
+all_hourly_sp <- as(all_hourly_sf, "Spatial")
+
+#map dectections by frequency= color
+
+all_hourly_map <- ggplot(data = all_hourly_sf) +
+  geom_sf(aes(color = all_hourly_sf$freq))+
+  scale_colour_viridis_c() +
+  geom_sf(data = ca, color = "darkgreen", fill = "darkgreen") +
+  ggtitle("All Frequency August- Septemeber 2018")+
+  coord_sf(xlim = c(-119.01, -119.06), ylim = c(33.46, 33.495))
+
+all_hourly_map
+
+
+```
+
+
+4/22/2019
+#### Trying to see if can use trajectory class in stuff from the HR package
+
+```{r}
+
+f1_29792 <- detec %>%
+  filter(transmitter == "29792")
+
+#test makes it easier for naming stuff when working through it
+test <- f1_29792 
+
+#converting to spatial coordinates
+data(test, package = "sp")
+test_sf <- st_as_sf(test, coords= c("long","lat"), crs=4326)
+test_sp <- as(test_sf, "Spatial")
+
+class(test_sp$date_time)
+#check to make sure its class: "POSIXct" "POSIXt" 
+
+#creating ltraj object
+raw_test <- as.ltraj(coordinates(test_sp),date=test_sp$date_time,id=test_sp$transmitter, typeII=TRUE)
+
+
+```
+
+
+trying to figure out how to edit the time on y axis so not a giant mess
+```{r}
+
+time_vector <- c("00:00:00", "06:00:00", "12:00:00", "18:00:00", "24:00:00")
+as.POSIXct(time_vector, format="%X")
+
+
+test <- seq(ISOtime(200,1,31), by = "month", length.out = 4)
+
+start_time = strptime("00:00:00", format = "%H:%M:%S")
+end_time = strptime("23:59:59", format = "%H:%M:%S")
+breaks = seq(0, 125, length.out = 4)
+labels = c("00:00:00", "06:00:00", "12:00:00", 
+           "18:00:00")
+
+```
+
+
+binning by the hour code for abacud graphs: wasn't super interesting but at lease i have the code now
+Binned by hour
+
+```{r}
+
+hourly_4 <- detec %>% 
+  filter(transmitter == "9716") %>%
+  mutate(freq= 1) %>%
+  separate(date_time, c("date", "time"), sep= " ") %>%
+  separate(time, c("hour", "minute", "second"), sep = ":") %>%
+  group_by(transmitter, date, hour, transmitter, station, lat, long) %>%
+  summarise(freq=sum(freq)) %>%
+  mutate(minute= "00") %>%
+  mutate(second= "00") %>%
+  unite(time_1, minute, second, sep= ":")%>%
+  unite(time, hour, time_1, sep = ":") %>%
+  unite(date_time, date, time, sep = " ")
+#changing classes for time and coordinates
+hourly_4$date_time <- as.POSIXct(hourly_4$date_time, format="%Y-%m-%d %H:%M")
+
+f4_hourly <-ggplot(hourly_4, aes(x=date_time, y= station)) +
+       geom_point(shape=15) +
+       theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  ggtitle("Transmitter #9716") +
+   scale_x_datetime()
+  
+f4_hourly
+
+
+```
+
+
+
