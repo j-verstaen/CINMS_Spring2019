@@ -144,32 +144,33 @@ tot_freq_sf <- st_as_sf(tot_freq, coords= c("long","lat"), crs=4326)
 tot_freq_sp <- as(tot_freq_sf, "Spatial")
 
 #devtools::install_github("yutannihilation/ggsflabel")
+class(tot_freq_sf$station_name)
+
+tot_freq_sf$station_name <- factor(tot_freq_sf$station_name, levels = c("Station 1", "Station 2","Station 3", "Station 5", "Station 6", "Station 7", "Station 8", "Station 9", "Station 10"))
+
+
+col = c("#000033","#003A2F","#01635B","#35918C","#7DC7BD","#D8BB77","#B97D2D","#874E08","#502F06")
 
 ### map
 percent_map <- ggplot(data = tot_freq_sf) +
-  geom_sf(aes(color = tot_freq_sf$station_name) , show.legend = element_blank())+
+  geom_sf(aes(color = tot_freq_sf$station_name))+
   #scale_color_brewer(palette= "Oranges")+
-  scale_color_manual(values=c("#AD5911","#AD5911","#AD5911","#AD5911","#AD5911","#AD5911","#AD5911","#AD5911","#AD5911"))+
+  scale_color_manual(values=c("#000033","#003A2F","#01635B","#35918C","#7DC7BD","#D8BB77","#B97D2D","#874E08","#502F06"))+
   geom_sf(data = ca, color = "darkseagreen4", fill = "darkseagreen4") +
   ggtitle("Distribution of Giant Sea Bass Detections")+
   theme(legend.title=element_blank()) +
   coord_sf(xlim = c(-119.01, -119.06), ylim = c(33.46, 33.495))+
   theme_minimal()+
   theme(panel.background = element_rect(fill = "aliceblue"))+
-  geom_sf_label(aes(label = simple_label, color= station_name), size= 5)+
-  #something legend = point i did it before and then deleted it :[, i would recognize it if i saw it
+  geom_sf_label(aes(label = simple_label), fill = col, color= "aliceblue", size= 5)+
   xlab(" ")+
   ylab(" ")+ 
   theme(axis.text=element_text(size=12))
-
 
 percent_map
 
 ggsave("percent_map.jpg", width=10, height=10, dpi=300)
 
-#087680
-  #scale_color_brewer(palette= "BrBG")+
-  #theme(legend.text = element_text(size="10"))+
 #  geom_sf_text_repel(aes(label = percentage, size =10), direction="y", nudge_x=0.05, show.legend=FALSE)+ this function doesnt exist yet but should be coming out soon
 
 ```
