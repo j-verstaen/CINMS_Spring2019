@@ -1,0 +1,239 @@
+---
+title: "report_figures"
+author: "Juliette Verstaen"
+date: "6/12/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+##1. Load Packages and Data
+```{r}
+library(tidyverse)
+library(sf)
+library(sp)
+library(ggpubr)
+library(readxl)
+library(lubridate)
+library(raster)
+library(rworldmap)
+library(ggplot2)
+library(scales) 
+library(here)
+library(ggrepel)
+
+```
+
+
+
+##1. Data
+```{r}
+
+detec1 <- read_excel(here::here("seabass/data", "detections_6_4_2019.xls"))
+detec2 <-  read_excel(here::here("seabass/data", "detections_4_3_2019.xls"))
+###load in other data here as you get it and then add to the rbind code
+
+detec <- rbind(detec1, detec2) %>%
+  distinct()
+
+#rename columns
+names(detec) <- c("date_time", "transmitter", "station", "lat", "long")
+
+#simplify transmitter name
+detec <- detec %>%
+  separate(transmitter, c("first", "second", "transmitter")) %>%
+  dplyr::select(date_time, transmitter, station, long, lat) %>%
+  filter( transmitter != "62806")
+
+class(detec$date_time)
+#needs to be in "POSIXct" "POSIXt" 
+
+trans_counts <-detec %>%
+  group_by(transmitter) %>%
+  count(transmitter) %>%
+  ungroup()
+
+```
+
+Reading in CA shapefiles
+```{r}
+
+ca <- st_read(dsn = "seabass/data/ca_shape/CA", layer = "CA")
+ca <- ca%>% 
+  st_transform(4326)
+
+```
+
+
+##Figure 1
+```{r}
+
+### stats and adding coords
+tot_freq1 <- detec %>%
+  group_by(station) %>%
+  count(station) %>%
+  mutate(percentage = (n/sum(tot_freq$n))*100)%>%
+  mutate(lat = case_when(
+    station == "SB-01" ~ 33.48818, 
+    station == "SB-02" ~ 33.49063,
+    station == "SB-03" ~ 33.48695, 
+    station == "SB-05" ~ 33.47595,
+    station == "SB-06" ~ 33.46800,
+    station == "SB-07" ~ 33.46367,
+    station == "SB-08" ~ 33.46065,
+    station == "SB-09" ~ 33.47087,
+    station == "SB-10" ~ 33.48382)) %>%
+  mutate(long = case_when(
+    station == "SB-01" ~ -119.0249, 
+    station == "SB-02" ~ -119.0317,
+    station == "SB-03" ~ -119.0405, 
+    station == "SB-05" ~ -119.0476,
+    station == "SB-06" ~ -119.0457,
+    station == "SB-07" ~ -119.0418,
+    station == "SB-08" ~ -119.0348,
+    station == "SB-09" ~ -119.0260,
+    station == "SB-10" ~ -119.0228)) %>%
+   mutate(stat_long = case_when(
+    station == "SB-01" ~ "Station 1", 
+    station == "SB-02" ~ "Station 2",
+    station == "SB-03" ~ "Station 3", 
+    station == "SB-05" ~ "Station 5",
+    station == "SB-06" ~ "Station 6",
+    station == "SB-07" ~ "Station 7",
+    station == "SB-08" ~ "Station 8",
+    station == "SB-09" ~ "Station 9",
+    station == "SB-10" ~ "Station 10"))%>%
+  mutate(station_name = case_when(
+    station == "SB-01" ~ "Station 1", 
+    station == "SB-02" ~ "Station 2",
+    station == "SB-03" ~ "Station 3", 
+    station == "SB-05" ~ "Station 5",
+    station == "SB-06" ~ "Station 6",
+    station == "SB-07" ~ "Station 7",
+    station == "SB-08" ~ "Station 8",
+    station == "SB-09" ~ "Station 9",
+    station == "SB-10" ~ "Station 10"))%>%
+  mutate(persign= "%") %>%
+  mutate(persign_stay= "%") %>%
+  mutate(percentage_stay = percentage)
+  
+tot_freq1$percentage <- round(tot_freq1$percentage, digits=2)
+tot_freq1$percentage <- as.factor(tot_freq1$percentage)
+
+tot_freq1$percentage_stay <- round(tot_freq1$percentage_stay, digits=2)
+tot_freq1$percentage_stay <- as.factor(tot_freq1$percentage_stay)
+
+tot_freq2<- unite(tot_freq1, map_label1, c("stat_long", "percentage"), sep = ": ")
+
+tot_freq3 <- unite(tot_freq2, simple_label, c("percentage_stay", "persign_stay"), sep = "")
+
+tot_freq <- unite(tot_freq3, maplabel, c("map_label1", "persign"), sep="")
+
+
+
+### total number of detections
+#total_detections <- sum(tot_freq$n)
+# 28710
+
+### converting to spatial
+data(tot_freq, package = "sp")
+tot_freq_sf <- st_as_sf(tot_freq, coords= c("long","lat"), crs=4326)
+tot_freq_sp <- as(tot_freq_sf, "Spatial")
+
+#devtools::install_github("yutannihilation/ggsflabel")
+
+### map
+percent_map <- ggplot(data = tot_freq_sf) +
+  geom_sf(aes(color = tot_freq_sf$station_name) , show.legend = element_blank())+
+  #scale_color_brewer(palette= "Oranges")+
+  scale_color_manual(values=c("#AD5911","#AD5911","#AD5911","#AD5911","#AD5911","#AD5911","#AD5911","#AD5911","#AD5911"))+
+  geom_sf(data = ca, color = "darkseagreen4", fill = "darkseagreen4") +
+  ggtitle("Distribution of Giant Sea Bass Detections")+
+  theme(legend.title=element_blank()) +
+  coord_sf(xlim = c(-119.01, -119.06), ylim = c(33.46, 33.495))+
+  theme_minimal()+
+  theme(panel.background = element_rect(fill = "aliceblue"))+
+  geom_sf_label(aes(label = simple_label, color= station_name), size= 5)+
+  #something legend = point i did it before and then deleted it :[, i would recognize it if i saw it
+  xlab(" ")+
+  ylab(" ")+ 
+  theme(axis.text=element_text(size=12))
+
+
+percent_map
+
+ggsave("percent_map.jpg", width=10, height=10, dpi=300)
+
+#087680
+  #scale_color_brewer(palette= "BrBG")+
+  #theme(legend.text = element_text(size="10"))+
+#  geom_sf_text_repel(aes(label = percentage, size =10), direction="y", nudge_x=0.05, show.legend=FALSE)+ this function doesnt exist yet but should be coming out soon
+
+```
+
+
+Fig 2: All fish on one abacus graph
+```{r}
+#library("scales")
+#library(ggthemes)
+
+#palettes <- ggthemes_data[["tableau"]][["color-palettes"]][["regular"]]
+#for (palname in names(palettes)) {
+ # pal <- tableau_color_pal(palname)
+#  max_n <- attr(pal, "max_n")
+#  show_col(pal(max_n))
+#  title(main = palname)
+#}
+
+#pal <- tableau_color_pal("Nuriel Stone")
+
+all <-ggplot(detec) +
+  geom_point(shape=15, aes(x=date_time, y= station, color= transmitter )) +
+  scale_color_brewer(palette= "Oranges")+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  scale_x_datetime() +
+  ggtitle("All Fish") +
+  xlab("Month") +
+  ylab("Station") +
+  theme_pubclean() +
+  theme(axis.text=element_text(size=15),
+        axis.title=element_text(size=15, face= "bold"))
+
+all
+ggsave("all.jpg", width=10, height=8, dpi=300)
+
+one <-ggplot(detec) +
+  geom_point(shape=15, aes(x=date_time, y= station), color = "#5AA1D3") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  scale_x_datetime() +
+  ggtitle("All Fish") +
+  xlab("Month") +
+  ylab("Station") +
+  theme_pubclean()
+
+one
+#ggsave("one.jpg", width=10, height=6, dpi=300)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

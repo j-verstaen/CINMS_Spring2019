@@ -1,5 +1,5 @@
 # CINMS_Spring2019
-# Author: Juliette Verstaen; juliette@verstaen.com
+# Author: Juliette Verstaen (juliette@verstaen.com)
 
 Contents:
 1. Rmarkdown and code for analyzing giant sea bass data from Santa Barbara Island
