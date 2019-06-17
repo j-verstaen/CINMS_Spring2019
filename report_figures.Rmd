@@ -133,7 +133,6 @@ tot_freq3 <- unite(tot_freq2, simple_label, c("percentage_stay", "persign_stay")
 tot_freq <- unite(tot_freq3, maplabel, c("map_label1", "persign"), sep="")
 
 
-
 ### total number of detections
 #total_detections <- sum(tot_freq$n)
 # 28710
@@ -162,14 +161,14 @@ percent_map <- ggplot(data = tot_freq_sf) +
   coord_sf(xlim = c(-119.01, -119.06), ylim = c(33.46, 33.495))+
   theme_minimal()+
   theme(panel.background = element_rect(fill = "aliceblue"))+
-  geom_sf_label(aes(label = simple_label), fill = col, color= "aliceblue", size= 5)+
+  geom_sf_label(aes(label = simple_label), fill = col, color= "aliceblue", size= 8)+
   xlab(" ")+
   ylab(" ")+ 
   theme(axis.text=element_text(size=12))
 
 percent_map
 
-ggsave("percent_map.jpg", width=10, height=10, dpi=300)
+#ggsave("percent_map.jpg", width=10, height=10, dpi=300)
 
 #  geom_sf_text_repel(aes(label = percentage, size =10), direction="y", nudge_x=0.05, show.legend=FALSE)+ this function doesnt exist yet but should be coming out soon
 
@@ -191,9 +190,24 @@ Fig 2: All fish on one abacus graph
 
 #pal <- tableau_color_pal("Nuriel Stone")
 
-all <-ggplot(detec) +
-  geom_point(shape=15, aes(x=date_time, y= station, color= transmitter )) +
-  scale_color_brewer(palette= "Oranges")+
+detec_fig2 <- detec %>%
+   mutate(station_name = case_when(
+    station == "SB-01" ~ "Station 1", 
+    station == "SB-02" ~ "Station 2",
+    station == "SB-03" ~ "Station 3", 
+    station == "SB-05" ~ "Station 5",
+    station == "SB-06" ~ "Station 6",
+    station == "SB-07" ~ "Station 7",
+    station == "SB-08" ~ "Station 8",
+    station == "SB-09" ~ "Station 9",
+    station == "SB-10" ~ "Station 10"))
+
+detec_fig2$station_name <- factor(detec_fig2$station_name, levels = c("Station 1", "Station 2","Station 3", "Station 5", "Station 6", "Station 7", "Station 8", "Station 9", "Station 10"))
+
+
+all <-ggplot(detec_fig2) +
+  geom_point(aes(x=date_time, y= station_name, color= transmitter), shape=15, size=3) +
+  scale_color_manual(values=c("#000033","#003A2F","#01635B","#35918C","#7DC7BD","#D8BB77","#B97D2D","#874E08","#502F06", "#00CC99", "#003000", "#99CCCC"))+
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   scale_x_datetime() +
   ggtitle("All Fish") +
@@ -204,7 +218,8 @@ all <-ggplot(detec) +
         axis.title=element_text(size=15, face= "bold"))
 
 all
-ggsave("all.jpg", width=10, height=8, dpi=300)
+
+ggsave("all.jpg", width=10, height=4, dpi=300)
 
 one <-ggplot(detec) +
   geom_point(shape=15, aes(x=date_time, y= station), color = "#5AA1D3") +
